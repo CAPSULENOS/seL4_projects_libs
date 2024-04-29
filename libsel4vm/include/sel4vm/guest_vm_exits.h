@@ -14,3 +14,4 @@ typedef enum vm_exit_codes {
 } vm_exit_codes_t;
 
 #define VM_GUEST_ERROR_EXIT -1
+#define VM_GUEST_TIMEOUT_EXIT -2  //added  by Peng Xie

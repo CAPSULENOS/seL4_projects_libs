@@ -212,6 +212,7 @@ struct vm {
     char *vm_name;
     unsigned int vm_id;
     bool vm_initialised;
+    bool dtb_loaded;//added by Peng Xie
 };
 
 /***
@@ -230,6 +231,7 @@ int vm_run(vm_t *vm);
  * @return                      0 on success, -1 on error
  */
 int vcpu_start(vm_vcpu_t *vcpu);
+int vcpu_stop(vm_vcpu_t *vcpu);//added by Peng Xie
 
 /* Unhandled fault callback registration functions */
 

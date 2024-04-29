@@ -53,6 +53,7 @@ int vm_init(vm_t *vm, vka_t *vka, simple_t *host_simple, vspace_t host_vspace,
 
     /* Flag that the vm has been initialised */
     vm->vm_initialised = true;
+    vm->dtb_loaded =false;//added by Peng Xie
     return 0;
 }
 
