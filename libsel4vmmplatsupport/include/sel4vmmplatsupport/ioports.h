@@ -87,6 +87,7 @@ typedef struct vmm_io_list {
  * @return                                      0 for success, otherwise -1 for error
  */
 int vmm_io_port_init(vmm_io_port_list_t **io_list, uint16_t ioport_alloc_addr);
+int vmm_io_port_reset(vmm_io_port_list_t **io_list, uint16_t ioport_alloc_addr);//added by Peng Xie
 
 /***
  * @function vmm_io_port_add_handler(io_list, ioport_range, ioport_interface, port_type)

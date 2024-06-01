@@ -70,6 +70,7 @@ typedef memory_fault_result_t (*memory_fault_callback_fn)(vm_t *vm, vm_vcpu_t *v
  * @return                      vm_frame_t describing the memory frame that corresponds with the given address
  */
 typedef vm_frame_t (*memory_map_iterator_fn)(uintptr_t addr, void *cookie);
+typedef vm_frame_t (*memory_map_iterator_fn_1)(uintptr_t addr, void *cookie, seL4_Word* node);//added by Peng Xie
 
 typedef struct vm_memory_reservation vm_memory_reservation_t;
 typedef struct vm_memory_reservation_cookie vm_memory_reservation_cookie_t;
@@ -131,8 +132,8 @@ int vm_free_reserved_memory(vm_t *vm, vm_memory_reservation_t *reservation);
  * @param {void *} cookie                               Cookie to pass onto map_iterator function
  * @return                                              -1 on failure otherwise 0 for success
  */
-int vm_map_reservation(vm_t *vm, vm_memory_reservation_t *reservation, memory_map_iterator_fn map_iterator,
-                       void *cookie);
+int vm_map_reservation(vm_t *vm, vm_memory_reservation_t *reservation, memory_map_iterator_fn map_iterator, void *cookie);
+int vm_map_reservation_with_node(vm_t *vm, vm_memory_reservation_t *reservation, memory_map_iterator_fn_1 map_iterator,  void *cookie, seL4_Word* node);//added by Peng Xie
 
 /***
  * @function vm_map_reservation_frames(vm, reservation, frames, num_frames, frame_size_bits)

@@ -54,7 +54,29 @@ int vm_init(vm_t *vm, vka_t *vka, simple_t *host_simple, vspace_t host_vspace,
     /* Flag that the vm has been initialised */
     vm->vm_initialised = true;
     vm->dtb_loaded =false;//added by Peng Xie
+    vm->cspath_saved=false;//added by Peng Xie
     return 0;
+}
+
+//added by Peng Xie
+//TODO free vcpu and create a new cpu!!!
+vm_vcpu_t * vm_reset_vcpu(vm_t *vm, int priority)
+{
+    int err;
+  //free old vcpu object
+    for(int index = 0;index < vm->num_vcpus;index++)
+    {
+    vm_vcpu_t* vcpu = vm->vcpus[index];
+    assert(vcpu);
+
+    vka_free_object(vm->vka, &vcpu->vcpu);
+    vka_free_object(vm->vka, &vcpu->tcb.tcb);
+    free(vcpu);
+    vm->num_vcpus--;
+    curr_vcpu_index--;
+    }
+    printf("vm_reset_vcpu: before create new cpu!\n");
+    return vm_create_vcpu(vm, priority);
 }
 
 vm_vcpu_t *vm_create_vcpu(vm_t *vm, int priority)

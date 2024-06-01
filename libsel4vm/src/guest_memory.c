@@ -30,6 +30,7 @@ struct vm_memory_reservation {
     memory_fault_callback_fn fault_callback;
     /* Iterator to be invoked for performing a map on the reservation region */
     memory_map_iterator_fn memory_map_iterator;
+    memory_map_iterator_fn_1 memory_map_iterator_1;//added by Peng Xie
     /* If the reservation is pending to be mapped into the vm's address space */
     bool is_mapped;
     /* Cookies to pass onto callback and iterator functions */
@@ -463,6 +464,40 @@ int vm_free_reserved_memory(vm_t *vm, vm_memory_reservation_t *reservation)
     return 0;
 }
 
+//added by Peng Xie
+int map_vm_memory_reservation_with_node(vm_t *vm, vm_memory_reservation_t *vm_reservation, memory_map_iterator_fn_1 map_iterator, void *map_cookie, seL4_Word* node)
+{
+    int err;
+    uintptr_t reservation_addr = vm_reservation->addr;
+    size_t reservation_size = vm_reservation->size;
+    uintptr_t current_addr = vm_reservation->addr;
+
+    while (current_addr < reservation_addr + reservation_size) {
+        vm_frame_t reservation_frame = map_iterator(current_addr, map_cookie,node);
+        if (reservation_frame.cptr == seL4_CapNull) {
+            ZF_LOGE("Failed to get frame for reservation address 0x%lx", current_addr);
+            break;
+        }
+
+ // printf("map_vm_memory_reservation_with_node: before vspace_deferred_rights_map_pages_at_vaddr! vaddr is 0x%lx\n",reservation_frame.vaddr);//added by Peng Xie
+    int ret = vspace_deferred_rights_map_pages_at_vaddr(&vm->mem.vm_vspace, &reservation_frame.cptr, NULL, (void *)reservation_frame.vaddr, 1, reservation_frame.size_bits, reservation_frame.rights, vm_reservation->vspace_reservation);
+        if (ret) {
+         ZF_LOGE("Failed to map address 0x%"PRIxPTR" into guest vm vspace", reservation_frame.vaddr);
+         return -1;
+        }
+
+	 // printf("map_vm_memory_reservation_with_node: the reservation frame size bit is %d\n", reservation_frame.size_bits);
+        current_addr += BIT(reservation_frame.size_bits);
+    }
+
+    vm_reservation->memory_map_iterator = NULL;
+    vm_reservation->memory_map_iterator_1 = NULL;
+    vm_reservation->memory_iterator_cookie = NULL;
+    vm_reservation->is_mapped = true;
+    return 0;
+}
+
+
 int map_vm_memory_reservation(vm_t *vm, vm_memory_reservation_t *vm_reservation,
                               memory_map_iterator_fn map_iterator, void *map_cookie)
 {
@@ -491,6 +526,37 @@ int map_vm_memory_reservation(vm_t *vm, vm_memory_reservation_t *vm_reservation,
     vm_reservation->is_mapped = true;
     return 0;
 }
+
+//added by Peng Xie
+int vm_map_reservation_with_node(vm_t *vm, vm_memory_reservation_t *reservation,memory_map_iterator_fn_1 map_iterator, void *cookie, seL4_Word* node)
+{
+    int err;
+    if (!vm) {
+        ZF_LOGE("Failed to map vm reservation with node: Invalid NULL VM handle given");
+        return -1;
+    } else if (!reservation) {
+        ZF_LOGE("Failed to map vm reservation with node: Invalid NULL reservation given");
+        return -1;
+    } else if (!map_iterator) {
+        ZF_LOGE("Failed to map vm reservation with node: Invalid map iterator given");
+    return -1;
+    }
+
+    reservation->memory_map_iterator_1 = map_iterator;
+    reservation->memory_iterator_cookie = cookie;
+    if (!config_set(CONFIG_LIB_SEL4VM_DEFER_MEMORY_MAP)) {
+        err = map_vm_memory_reservation_with_node(vm, reservation, map_iterator, cookie,node);
+        /* We remove the iterator after attempting the mapping (regardless of success or fail)
+         * If failed its left to the caller to update the memory map iterator */
+        if (err) {
+            ZF_LOGE("Failed to map vm reservation with node: Error when mapping into VM's vspace");
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 
 int vm_map_reservation(vm_t *vm, vm_memory_reservation_t *reservation,
                        memory_map_iterator_fn map_iterator, void *cookie)

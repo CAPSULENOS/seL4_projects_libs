@@ -214,6 +214,29 @@ int vm_ram_find_largest_free_region(vm_t *vm, uintptr_t *addr, size_t *size)
     return 0;
 }
 
+//added by Peng Xie
+int vm_ram_reset(vm_t *vm)
+{
+        int err=0;
+        vm_mem_t *guest_memory = &vm->mem;
+        int num_region = guest_memory->num_ram_regions;
+        if (num_region<1) {
+                err=1;
+                printf("vm_ram_reset: error no ram !!!\n");
+                return err;
+        }
+     // else printf("vm_ram_reset: the original num of region is %d\n", num_region);
+        for (int i=0;i<num_region;i++)
+        {
+          guest_memory->ram_regions[i].allocated =0;
+        }
+        /* sort and collapse */
+        sort_guest_ram_regions(guest_memory);
+        collapse_guest_ram_regions(guest_memory);
+       // printf("vm_ram_reset: the updated num of region is %d\n",guest_memory->num_ram_regions);
+        return err;
+}
+
 void vm_ram_mark_allocated(vm_t *vm, uintptr_t start, size_t bytes)
 {
     vm_mem_t *guest_memory = &vm->mem;

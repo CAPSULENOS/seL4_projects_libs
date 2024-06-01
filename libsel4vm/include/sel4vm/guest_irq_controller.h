@@ -56,3 +56,4 @@ int vm_register_irq(vm_vcpu_t *vcpu, int irq, irq_ack_fn_t ack_fn, void *cookie)
  * @return              0 on success, otherwise -1 for error
  */
 int vm_create_default_irq_controller(vm_t *vm);
+int vm_reset_default_irq_controller(vm_t *vm);//added by Peng Xie

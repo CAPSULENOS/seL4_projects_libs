@@ -116,6 +116,7 @@ int vm_ram_register_at_custom_iterator(vm_t *vm, uintptr_t start, size_t bytes, 
  * @param {size_t} bytes            Size of RAM region
  */
 void vm_ram_mark_allocated(vm_t *vm, uintptr_t start, size_t bytes);
+int vm_ram_reset(vm_t *vm);//added by Peng Xie
 
 /***
  * @function vm_ram_allocate(vm, bytes)

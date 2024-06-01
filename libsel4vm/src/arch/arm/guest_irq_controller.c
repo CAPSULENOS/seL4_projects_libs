@@ -14,3 +14,15 @@ int vm_create_default_irq_controller(vm_t *vm)
     }
     return vm_install_vgic(vm);
 }
+
+//added by Peng Xie
+int vm_reset_default_irq_controller(vm_t *vm)
+{
+    if (!vm) {
+        ZF_LOGE("Failed to initialise default irq controller: Invalid vm");
+        return -1;
+    }
+    return vm_reset_vgic(vm);
+}
+
+

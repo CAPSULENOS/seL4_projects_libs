@@ -157,6 +157,23 @@ ioport_entry_t *vmm_io_port_add_handler(vmm_io_port_list_t *io_list, ioport_rang
     return entry;
 }
 
+//added by Peng Xie
+int vmm_io_port_reset(vmm_io_port_list_t **io_list, uint16_t ioport_alloc_addr)
+{
+    vmm_io_port_list_t *init_iolist = *io_list;
+    if (init_iolist == NULL) {
+        ZF_LOGE("Error: no calloc memory for io port list");
+        return -1;
+    }
+
+    init_iolist->num_ioports = 0;
+    init_iolist->ioports = NULL;
+    init_iolist->alloc_addr = ioport_alloc_addr;
+    //*io_list = init_iolist;
+    return 0;
+}
+
+
 int vmm_io_port_init(vmm_io_port_list_t **io_list, uint16_t ioport_alloc_addr)
 {
     vmm_io_port_list_t *init_iolist = (vmm_io_port_list_t *)calloc(1, sizeof(vmm_io_port_list_t));

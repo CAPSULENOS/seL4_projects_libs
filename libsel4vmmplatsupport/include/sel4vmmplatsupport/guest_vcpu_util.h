@@ -23,3 +23,4 @@
  * @return                  NULL for error, otherwise pointer to created vm_vcpu_t object
  */
 vm_vcpu_t *create_vmm_plat_vcpu(vm_t *vm, int priority);
+vm_vcpu_t *reset_vmm_plat_vcpu(vm_t *vm,int priority);//added by Peng Xie

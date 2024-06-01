@@ -213,6 +213,8 @@ struct vm {
     unsigned int vm_id;
     bool vm_initialised;
     bool dtb_loaded;//added by Peng Xie
+    bool cspath_saved;//added by Peng Xie
+    cspacepath_t saved_cspath;//added by Peng Xie
 };
 
 /***

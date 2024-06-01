@@ -78,6 +78,7 @@ int vm_create_vcpu_arch(vm_t *vm, vm_vcpu_t *vcpu)
 
     seL4_Word badge = VCPU_BADGE_CREATE((seL4_Word)vcpu->vcpu_id);
 
+    if(!vm->cspath_saved){//added by Peng Xie
     /* Badge the endpoint */
     vka_cspace_make_path(vm->vka, vm->host_endpoint, &src);
     err = vka_cspace_alloc_path(vm->vka, &dst);
@@ -92,6 +93,16 @@ int vm_create_vcpu_arch(vm_t *vm, vm_vcpu_t *vcpu)
     dst.capDepth = VM_CSPACE_SIZE_BITS;
     err = vka_cnode_copy(&dst, &src, seL4_AllRights);
     assert(!err);
+    // printf("vm_create_vcpu_arch: dst capPtr is 0x%lx  0x%lx\n", dst.capPtr,dst.capDepth);//added by Peng Xie
+    vm->saved_cspath=dst;
+    vm->cspath_saved=true;
+    }
+    else{//added by Peng Xie
+    //printf("vm_create_vcpu_arch: cspath is saved!\n");
+    dst=vm->saved_cspath;//added by Peng Xie
+   // printf("vm_create_vcpu_arch: dst capPtr is 0x%lx  0x%lx \n", dst.capPtr,dst.capDepth);//added by Peng Xie
+    }//added by Peng Xie
+
 
     /* Create TCB */
     err = vka_alloc_tcb(vm->vka, &vcpu->tcb.tcb);

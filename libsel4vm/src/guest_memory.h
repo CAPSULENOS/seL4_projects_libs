@@ -29,3 +29,5 @@ memory_fault_result_t vm_memory_handle_fault(vm_t *vm, vm_vcpu_t *vcpu, uintptr_
  */
 int map_vm_memory_reservation(vm_t *vm, vm_memory_reservation_t *vm_reservation,
                               memory_map_iterator_fn map_iterator, void *map_cookie);
+int map_vm_memory_reservation_with_node(vm_t *vm, vm_memory_reservation_t *vm_reservation, memory_map_iterator_fn_1 map_iterator, void *map_cookie, seL4_Word* node);//added by Peng Xie
+

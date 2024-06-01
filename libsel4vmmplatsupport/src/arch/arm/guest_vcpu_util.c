@@ -33,6 +33,43 @@ static void vppi_event_ack(vm_vcpu_t *vcpu, int irq, void *cookie)
 
 static void sgi_ack(vm_vcpu_t *vcpu, int irq, void *cookie) {}
 
+//added by Peng Xie
+vm_vcpu_t* reset_vmm_plat_vcpu(vm_t *vm, int priority)
+{
+    int err;
+    vm_vcpu_t *vm_vcpu = vm_reset_vcpu(vm, priority);
+    if (vm_vcpu == NULL) {
+        ZF_LOGE("Failed to reset platform vcpu");
+        return NULL;
+    }
+
+    err = vm_register_unhandled_vcpu_fault_callback(vm_vcpu, vmm_handle_arm_vcpu_exception, NULL);
+    if (err) {
+        ZF_LOGE("Failed to register vcpu platform fault callback handlers");
+        return NULL;
+    }
+    
+    err = vm_register_irq(vm_vcpu, PPI_VTIMER_IRQ, &vppi_event_ack, NULL);
+    if (err == -1) {
+        ZF_LOGE("Failed to register vcpu virtual time irq");
+        return NULL;
+    }
+
+    err = vm_register_irq(vm_vcpu, SGI_RESCHEDULE_IRQ, &sgi_ack, NULL);
+    if (err == -1) {
+        ZF_LOGE("Failed to register vcpu sgi 0 irq");
+        return NULL;
+    }
+ 
+    err = vm_register_irq(vm_vcpu, SGI_FUNC_CALL, &sgi_ack, NULL);
+    if (err == -1) {
+        ZF_LOGE("Failed to register vcpu sgi 1 irq");
+        return NULL;
+    }
+
+    return vm_vcpu;
+}
+
 vm_vcpu_t *create_vmm_plat_vcpu(vm_t *vm, int priority)
 {
     int err;

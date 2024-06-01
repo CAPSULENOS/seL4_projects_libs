@@ -42,8 +42,6 @@ static vm_exit_handler_fn_t arm_exit_handlers[] = {
     [VM_UNKNOWN_EXIT] = vm_unknown_exit_handler
 };
 
-static int counter=0;//added by PengXie
-
 static int vm_decode_exit(seL4_Word label)
 {
     int exit_reason = VM_UNKNOWN_EXIT;
@@ -78,9 +76,6 @@ static int vm_vppi_event_handler(vm_vcpu_t *vcpu)
     int err;
     seL4_Word ppi_irq;
     ppi_irq = seL4_GetMR(0);
-   
-//     printf("vm_vppi_event_handler!\n");//added by Peng Xie
-    
     /* We directly inject the interrupt assuming it has been previously registered
      * If not the interrupt will dropped by the VM */
     err = vm_inject_irq(vcpu, ppi_irq);
@@ -160,10 +155,8 @@ static int vm_unknown_exit_handler(vm_vcpu_t *vcpu)
     return VM_EXIT_HANDLE_ERROR;
 }
 
-//static int vcpu_stop(vm_vcpu_t *vcpu)
-int vcpu_stop(vm_vcpu_t *vcpu)
+static int vcpu_stop(vm_vcpu_t *vcpu)
 {
-    //printf("vcpu_stop!!!\n"); added by Peng Xie
     vcpu->vcpu_online = false;
     return seL4_TCB_Suspend(vm_get_vcpu_tcb(vcpu));
 }
@@ -175,7 +168,6 @@ int vcpu_start(vm_vcpu_t *vcpu)
     seL4_Word vmpidr_val;
     seL4_Word vmpidr_reg;
 
-//    printf("vcpu starts!!!\n"); added by Peng Xie
 #ifdef CONFIG_ARCH_AARCH64
     vmpidr_reg = seL4_VCPUReg_VMPIDR_EL2;
 #else
@@ -236,42 +228,29 @@ int vm_run_arch(vm_t *vm)
 {
     int err;
     int ret;
-   
-    ret = 1;
 
+    ret = 1;
     /* Loop, handling events */
     while (ret > 0) {
         seL4_MessageInfo_t tag;
         seL4_Word sender_badge;
         seL4_Word label;
         int vm_exit_reason;
-       
 
         tag = seL4_Recv(vm->host_endpoint, &sender_badge);
-
         label = seL4_MessageInfo_get_label(tag);
         if (sender_badge >= MIN_VCPU_BADGE && sender_badge <= MAX_VCPU_BADGE) {
-	    seL4_Word vcpu_idx = VCPU_BADGE_IDX(sender_badge);
+            seL4_Word vcpu_idx = VCPU_BADGE_IDX(sender_badge);
             if (vcpu_idx >= vm->num_vcpus) {
                 ZF_LOGE("Invalid VCPU index. Exiting");
                 ret = -1;
             } else {
-                vm_exit_reason = vm_decode_exit(label);	
-	         //-----added by Peng Xie
-		if(vm_exit_reason==VM_VPPI_EXIT)counter++;
-		ret = arm_exit_handlers[vm_exit_reason](vm->vcpus[vcpu_idx]);
-
-	   	if (ret == VM_EXIT_HANDLE_ERROR) {
+                vm_exit_reason = vm_decode_exit(label);
+                ret = arm_exit_handlers[vm_exit_reason](vm->vcpus[vcpu_idx]);
+                if (ret == VM_EXIT_HANDLE_ERROR) {
                     vm->run.exit_reason = VM_GUEST_ERROR_EXIT;
                 }
-		else {//added by Peng xie
-			if (counter>600) {
-                  vm->run.exit_reason = VM_GUEST_TIMEOUT_EXIT;
-                  ret=-1;
-		  counter=-1000;
-                }
-            }//added by Peng Xie
-	    }//added by Peng Xie
+            }
         } else {
             if (vm->run.notification_callback) {
                 err = vm->run.notification_callback(vm, sender_badge, tag,

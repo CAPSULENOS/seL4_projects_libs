@@ -16,5 +16,6 @@ struct vgic_dist_device {
 
 extern const struct vgic_dist_device dev_vgic_dist;
 
+int vm_reset_vgic(vm_t *vm);//added by Peng Xie
 int vm_install_vgic(vm_t *vm);
 int vm_vgic_maintenance_handler(vm_vcpu_t *vcpu);

@@ -58,6 +58,8 @@
 #include "gicv2.h"
 #include "vdist.h"
 
+static vm_memory_reservation_t* reservation_pointers[2]={NULL};//added by Peng Xie
+static seL4_Word device_node;//added by Peng Xie to store the vgic-cpu node
 
 static struct vgic_dist_device *vgic_dist;
 
@@ -203,6 +205,39 @@ static memory_fault_result_t handle_vgic_vcpu_fault(vm_t *vm, vm_vcpu_t *vcpu, u
     return FAULT_ERROR;
 }
 
+
+//added by Peng Xie
+static vm_frame_t vgic_vcpu_iterator_1(uintptr_t addr, void *cookie, seL4_Word* node)
+{
+    cspacepath_t frame;
+    vm_frame_t frame_result = { seL4_CapNull, seL4_NoRights, 0, 0 };
+    vm_t *vm = (vm_t *)cookie;
+
+    int err = vka_cspace_alloc_path(vm->vka, &frame);
+    if (err) {
+        ZF_LOGE("Failed to allocate cslot for vgic vcpu");
+        return frame_result;
+    }
+   
+    err = vka_utspace_alloc_at(vm->vka, &frame, kobject_get_type(KOBJECT_FRAME, 12), 12, GIC_VCPU_PADDR, node);
+    seL4_Word* node_ptr = (seL4_Word*) (*node);
+    //printf("vgic_vcpu_iterator_1: after calling vka_utspace_alloc_at node is 0x%lx node_ptr is 0x%lx...________________\n",*node, *node_ptr);//added by Peng Xie
+    if (err) {
+     printf("vgic_vcpu_iterator_1: before calling simple_get_frame_cap...\n");
+     err = simple_get_frame_cap(vm->simple, (void *)GIC_VCPU_PADDR, 12, &frame);
+    if (err) {
+            ZF_LOGE("Failed to find device cap for vgic vcpu");
+            return frame_result;
+        }
+    }
+    frame_result.cptr = frame.capPtr;
+    frame_result.rights = seL4_AllRights;
+    frame_result.vaddr = GIC_CPU_PADDR;
+    frame_result.size_bits = seL4_PageBits;
+    return frame_result;
+}
+
+
 static vm_frame_t vgic_vcpu_iterator(uintptr_t addr, void *cookie)
 {
     cspacepath_t frame;
@@ -228,6 +263,58 @@ static vm_frame_t vgic_vcpu_iterator(uintptr_t addr, void *cookie)
     frame_result.vaddr = GIC_CPU_PADDR;
     frame_result.size_bits = seL4_PageBits;
     return frame_result;
+}
+
+//added by Peng Xie, un-install the VM's vgic
+static int vm_uninstall_vgic(vm_t *vm)
+{
+
+  if(!reservation_pointers[0])
+   {
+     printf("error: no vgic dist reservation!\n" );
+     return 0;
+   }
+  else vm_free_reserved_memory(vm,reservation_pointers[0]);
+
+  printf("vm_uninstall_vgic:uninstall vgic dist!\n");
+
+  if(!reservation_pointers[1])
+   {
+        printf("error: no vgic cpu reservation!\n" );
+        return 0;
+   }
+  else vm_free_reserved_memory(vm,reservation_pointers[1]);
+
+  printf("vm_uninstall_vgic:uninstall vgic vcpu!\n");
+
+  reservation_pointers[0]==NULL;
+  reservation_pointers[1]==NULL;
+  return 1;
+}
+
+//modified by Peng Xie to re-install vgic
+int vm_reset_vgic(vm_t *vm )
+{
+   if(!vm_uninstall_vgic(vm))
+   {
+    printf("vm_reset_vgic: fail to un-install the vgic!\n");
+    return -1;
+   }
+  // printf("vm_reset_vgic: uninstall the vgic!\n");
+
+   //added the node  to dev-heads
+   // printf("vm_reset_vgic: insert the device node back 0x%lx...\n", device_node);
+   vka_t *vka=vm->vka;
+   vka->utspace_add_node(vka->data, &device_node);
+    
+   printf("vm_reset_vgic: install the vgic again...\n");
+   if(vm_install_vgic(vm)==-1)
+   {
+   printf("vm_reset_vgic: fail to install the vgic!\n");
+   return -1;
+   }
+   //printf("vm_reset_vgic: install the vgic!\n");
+   return 0;
 }
 
 /*
@@ -257,21 +344,33 @@ int vm_install_vgic(vm_t *vm)
     if (vgic->dist == NULL) {
         return -1;
     }
-    vm_memory_reservation_t *vgic_dist_res = vm_reserve_memory_at(vm, GIC_DIST_PADDR, PAGE_SIZE_4K,
-                                                                  handle_vgic_dist_fault, (void *)vgic_dist);
+    vm_memory_reservation_t *vgic_dist_res = vm_reserve_memory_at(vm, GIC_DIST_PADDR, PAGE_SIZE_4K,handle_vgic_dist_fault, (void *)vgic_dist);
     vgic_dist->vgic = vgic;
     vgic_dist_reset(vgic_dist);
 
     /* Remap VCPU to CPU */
-    vm_memory_reservation_t *vgic_vcpu_reservation = vm_reserve_memory_at(vm, GIC_CPU_PADDR, PAGE_SIZE_4K,
-                                                                          handle_vgic_vcpu_fault, NULL);
-    int err = vm_map_reservation(vm, vgic_vcpu_reservation, vgic_vcpu_iterator, (void *)vm);
+   vm_memory_reservation_t *vgic_vcpu_reservation = vm_reserve_memory_at(vm, GIC_CPU_PADDR, PAGE_SIZE_4K,handle_vgic_vcpu_fault, NULL);
+
+  int err = vm_map_reservation_with_node(vm, vgic_vcpu_reservation, vgic_vcpu_iterator_1, (void *)vm, &device_node);
     if (err) {
         free(vgic_dist->vgic);
         return -1;
     }
 
+   //added by Peng Xie 
+   //printf("vm_install_vgic: device node adddr is 0x%lx !\n",device_node);
+  reservation_pointers[0]=vgic_dist_res;
+  reservation_pointers[1]=vgic_vcpu_reservation;
+
+  return 0;
+    /* Original version
+    int err = vm_map_reservation(vm, vgic_vcpu_reservation, vgic_vcpu_iterator, (void *)vm);
+    if (err) {
+        free(vgic_dist->vgic);
+        return -1;
+    }
     return 0;
+    */
 }
 
 int vm_vgic_maintenance_handler(vm_vcpu_t *vcpu)

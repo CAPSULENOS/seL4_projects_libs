@@ -70,6 +70,7 @@ typedef struct vmm_pci_space {
  * @return                              0 on success, -1 on error
  */
 int vmm_pci_init(vmm_pci_space_t **space);
+int vmm_pci_reset(vmm_pci_space_t **space);//added by Peng Xie
 
 /***
  * @function vmm_pci_add_entry(space, entry, addr)

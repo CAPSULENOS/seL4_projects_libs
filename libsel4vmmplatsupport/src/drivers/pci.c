@@ -22,6 +22,47 @@
 #define NUM_DEVICES 32
 #define NUM_FUNCTIONS 8
 
+//added by Peng Xie
+static int vmm_pci_delete_entry(vmm_pci_space_t *space)
+{
+    /* Find non empty dev */
+    for (int i = 0; i < 32; i++) {
+        if (space->bus0[i][0]) {
+            /* Allocate an entry */
+            free(space->bus0[i][0]);
+      printf("vmm_pci_delete_entry:deleting  virtual PCI device at %02x:%02x.%d!\n",0,i,0);//added by Peng Xie
+            ZF_LOGI("Deleting  virtual PCI device at %02x:%02x.%d", 0, i, 0);
+            return 0;
+        }
+    }
+}
+
+int vmm_pci_reset(vmm_pci_space_t **space)
+{
+ vmm_pci_space_t *pci_space = *space;
+    if (!pci_space) {
+        ZF_LOGE("Error no allocated memory for pci space");
+        return -1;
+    }
+
+    vmm_pci_delete_entry(space);
+    pci_space->conf_port_addr = 0;
+
+    /* Define the initial PCI bridge */
+
+     vmm_pci_device_def_t *bridge = calloc(1, sizeof(*bridge));
+    if (!bridge) {
+        ZF_LOGE("Failed to calloc memory for pci bridge");
+        return -1;
+    }
+    define_pci_host_bridge(bridge);
+    *space = pci_space;
+    return vmm_pci_add_entry(pci_space, (vmm_pci_entry_t) {
+        .cookie = bridge, .ioread = vmm_pci_mem_device_read, .iowrite = vmm_pci_entry_ignore_write
+    }, NULL);
+}
+
+
 int vmm_pci_init(vmm_pci_space_t **space)
 {
     vmm_pci_space_t *pci_space = (vmm_pci_space_t *)calloc(1, sizeof(vmm_pci_space_t));
