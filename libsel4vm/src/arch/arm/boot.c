@@ -122,8 +122,10 @@ int vm_create_vcpu_arch(vm_t *vm, vm_vcpu_t *vcpu)
     vcpu->vcpu_arch.unhandled_vcpu_callback_cookie = NULL;
 
 #if CONFIG_MAX_NUM_NODES > 1
-    if (seL4_TCB_SetAffinity(vcpu->tcb.tcb.cptr, vcpu->vcpu_id)) {
-        err = -1;
+    //if (seL4_TCB_SetAffinity(vcpu->tcb.tcb.cptr, vcpu->vcpu_id)) {
+    //added by Peng Xie to pin the VM to cpu core, assume # of VM <# of CPU 
+     if (seL4_TCB_SetAffinity(vcpu->tcb.tcb.cptr, vm->vm_id)) {  
+      err = -1;
     }
 #endif /* CONFIG_MAX_NUM_NODES > 1 */
 
