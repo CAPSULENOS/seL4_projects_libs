@@ -42,7 +42,9 @@ static vm_exit_handler_fn_t arm_exit_handlers[] = {
     [VM_UNKNOWN_EXIT] = vm_unknown_exit_handler
 };
 
-static int counter=0;//added by PengXie
+#define REBOOT_ID 0   //the reboot machine id
+static int counter=0;//added by Peng Xie
+static int stop=1;// added by Peng Xie to indicate the reset is done
 
 static int vm_decode_exit(seL4_Word label)
 {
@@ -137,7 +139,8 @@ static int vm_vcpu_handler(vm_vcpu_t *vcpu)
     fault = vcpu->vcpu_arch.fault;
     hsr = seL4_GetMR(seL4_UnknownSyscall_ARG0);
     if (vcpu->vcpu_arch.unhandled_vcpu_callback) {
-        /* Pass the vcpu fault to library user in case they can handle it */
+      //  printf("vm_vcpu_handler: unhandled_vcpu_callback is not null!!!\n");//added by Peng Xie
+	 /* Pass the vcpu fault to library user in case they can handle it */
         err = new_vcpu_fault(fault, hsr);
         if (err) {
             ZF_LOGE("Failed to create new fault");
@@ -258,18 +261,20 @@ int vm_run_arch(vm_t *vm)
             } else {
                 vm_exit_reason = vm_decode_exit(label);	
 	         //-----added by Peng Xie
-		if(vm_exit_reason==VM_VPPI_EXIT)counter++;
+		if((vm_exit_reason==VM_VPPI_EXIT)&&(vm->vm_id==REBOOT_ID)&&(stop==1))counter++;
+		//if(counter<10) printf("vm_exit_reason is %d\n", vm_exit_reason);
 		ret = arm_exit_handlers[vm_exit_reason](vm->vcpus[vcpu_idx]);
 
 	   	if (ret == VM_EXIT_HANDLE_ERROR) {
                     vm->run.exit_reason = VM_GUEST_ERROR_EXIT;
                 }
 		else {//added by Peng xie
-			if (counter>600) {
-                  vm->run.exit_reason = VM_GUEST_TIMEOUT_EXIT;
-                  ret=-1;
-		  counter=-1000;
-                }
+			if ((counter>1000)&&(vm->vm_id==REBOOT_ID)&&(stop==1)) {
+                         vm->run.exit_reason = VM_GUEST_TIMEOUT_EXIT;
+                         ret=-1;
+			 stop=0;// only reboot once, need to update stop_VM()for multiple reboots
+		         counter=-1000;
+                   }
             }//added by Peng Xie
 	    }//added by Peng Xie
         } else {

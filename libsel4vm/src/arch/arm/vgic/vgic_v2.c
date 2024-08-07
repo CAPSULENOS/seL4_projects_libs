@@ -295,12 +295,50 @@ static int vm_uninstall_vgic(vm_t *vm)
 //modified by Peng Xie to re-install vgic
 int vm_reset_vgic(vm_t *vm )
 {
+  printf("vm_reset_vgic (%d)....\n", vm->vm_id);   
+
+#if CONFIG_ENABLE_SMP_SUPPORT 
+  //added by Peng Xie   
+   printf("vm_reset_vgic (%d) SMP is enabled!....\n", vm->vm_id);
+   if (!vgic_dist) {
+        printf("vm_reset_vgic (%d): vgic_dist does not exist!\n", vm->vm_id);
+        return -1;
+    }
+
+    struct vgic *vgic=vgic_dist->vgic;
+    if (!vgic) {
+      printf("vm_reset_vgic (%d): vgic does not exist!\n", vm->vm_id);
+        return -1;
+    }
+
+    struct gic_dist_map* dist=vgic->dist;
+
+    if (vgic->dist == NULL) {
+        printf("vm_reset_vgic (%d): vgic->dist does not exist!\n", vm->vm_id);
+            return -1;
+    }
+
+   // printf("vm_reset_vgic (%d): memcpy vgic_dist!\n", vm->vm_id);
+    memcpy(vgic_dist, &dev_vgic_dist, sizeof(struct vgic_dist_device));
+    vgic_dist->vgic = vgic;
+
+   // printf("vm_reset_vgic (%d): memset vgic!\n", vm->vm_id);
+    memset(vgic,0,sizeof(*vgic));
+
+    vgic->dist=dist;
+    //printf("vm_reset_vgic (%d): memset vgic->dist!\n", vm->vm_id);
+    memset(vgic->dist, 0, sizeof(struct gic_dist_map));
+    //printf("vm_reset_vgic (%d): vgic_dist_reset!\n", vm->vm_id); 
+    vgic_dist_reset(vgic_dist);
+#else
+   printf("vm_reset_vgic (%d) SMP is not enabled!!!\n", vm->vm_id);	
    if(!vm_uninstall_vgic(vm))
    {
     printf("vm_reset_vgic: fail to un-install the vgic!\n");
     return -1;
    }
-  // printf("vm_reset_vgic: uninstall the vgic!\n");
+      
+   // printf("vm_reset_vgic: uninstall the vgic!\n");
 
    //added the node  to dev-heads
    // printf("vm_reset_vgic: insert the device node back 0x%lx...\n", device_node);
@@ -314,6 +352,7 @@ int vm_reset_vgic(vm_t *vm )
    return -1;
    }
    //printf("vm_reset_vgic: install the vgic!\n");
+#endif  
    return 0;
 }
 
@@ -323,6 +362,7 @@ int vm_reset_vgic(vm_t *vm )
  */
 int vm_install_vgic(vm_t *vm)
 {
+
     struct vgic *vgic = calloc(1, sizeof(*vgic));
     if (!vgic) {
         assert(!"Unable to calloc memory for VGIC");
@@ -363,14 +403,6 @@ int vm_install_vgic(vm_t *vm)
   reservation_pointers[1]=vgic_vcpu_reservation;
 
   return 0;
-    /* Original version
-    int err = vm_map_reservation(vm, vgic_vcpu_reservation, vgic_vcpu_iterator, (void *)vm);
-    if (err) {
-        free(vgic_dist->vgic);
-        return -1;
-    }
-    return 0;
-    */
 }
 
 int vm_vgic_maintenance_handler(vm_vcpu_t *vcpu)
